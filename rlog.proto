@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package rlog;
+
+service Log {
+    rpc Register (RegisterRequest) returns (RegisterResponse) {}
+    
+    rpc Debug (LogMessage) returns (LogResponse) {}
+    rpc Fatal (LogMessage) returns (LogResponse) {}
+    rpc Error (LogMessage) returns (LogResponse) {}
+    rpc Warn (LogMessage) returns (LogResponse) {}
+    rpc Info (LogMessage) returns (LogResponse) {}
+}
+
+message RegisterRequest {
+    string name = 1;
+}
+
+message RegisterResponse {
+    int32 id = 1;
+    string message = 2;
+}
+
+message LogMessage {
+    int32 id = 1;
+    string message = 2;
+}
+
+message LogResponse {
+    string response = 1;
+}
+
