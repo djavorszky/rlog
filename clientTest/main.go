@@ -17,7 +17,12 @@ func main() {
 
 	client := rlog.NewLogClient(conn)
 
-	_, err = client.Info(context.Background(), &rlog.LogMessage{Message: "YO MAMMA SO FAT"})
+	resp, err := client.Register(context.Background(), &rlog.RegisterRequest{App: "testApp", Service: "testService"})
+	if err != nil {
+		log.Fatalf("failed calling 'Register' on client: %v", err)
+	}
+
+	_, err = client.Fatal(context.Background(), &rlog.LogMessage{Id: resp.Id, Message: "YO MAMMA SO FAT"})
 	if err != nil {
 		log.Fatalf("failed calling 'INFO' on client: %v", err)
 	}

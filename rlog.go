@@ -1,58 +1,146 @@
 package rlog
 
 import (
-	"log"
+	fmt "fmt"
+	"io"
+	"sync"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
+
+var (
+	mu       sync.RWMutex
+	registry = make(map[int32]service)
+	counter  = make(chan int32)
+)
+
+func init() {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	go increment()
+}
+
+func increment() int32 {
+	var id int32
+	for {
+		counter <- id
+		id++
+	}
+}
+
+type service struct {
+	app  string
+	name string
+}
+
+// SetOut sets the output of the logger. It is the responsibility of the
+// caller to close the resource. Not calling it will result in rlog printing
+// to stderr
+func SetOut(out io.Writer) {
+	logrus.SetOutput(out)
+}
 
 // Server implements implements the methods of the rlog service
 type Server struct{}
 
 // Register informs the server that a new service has joined
 func (s *Server) Register(ctx context.Context, msg *RegisterRequest) (*RegisterResponse, error) {
+	id := <-counter
 
-	log.Printf("Register: %v", msg)
+	mu.Lock()
+	registry[id] = service{app: msg.App, name: msg.Service}
+	mu.Unlock()
 
-	return &RegisterResponse{}, nil
+	logrus.WithFields(logrus.Fields{
+		"app":     msg.App,
+		"service": msg.Service,
+	}).Info("Registered Service")
+
+	return &RegisterResponse{Id: id, Message: "REGISTER_SUCCESS"}, nil
 }
 
 // Debug will log the received message on debug level
 func (s *Server) Debug(ctx context.Context, msg *LogMessage) (*LogResponse, error) {
+	meta, err := getMeta(msg.Id)
+	if err != nil {
+		return &LogResponse{}, err
+	}
 
-	log.Printf("Debug: %v", msg)
+	meta.Debug(msg.Message)
 
 	return &LogResponse{}, nil
 }
 
-// Fatal will log the received message on fatal level
+// Fatal will log the received message on error level - fatal would kill rlog.
 func (s *Server) Fatal(ctx context.Context, msg *LogMessage) (*LogResponse, error) {
+	meta, err := getMeta(msg.Id)
+	if err != nil {
+		return &LogResponse{}, err
+	}
 
-	log.Printf("Fatal: %v", msg)
+	// TODO: In case Fatal is called, send a notification somewhere
+	meta.WithField("error", "critical").Error(msg.Message)
 
 	return &LogResponse{}, nil
 }
 
 // Error will log the received message on error level
 func (s *Server) Error(ctx context.Context, msg *LogMessage) (*LogResponse, error) {
+	meta, err := getMeta(msg.Id)
+	if err != nil {
+		return &LogResponse{}, err
+	}
 
-	log.Printf("Error: %v", msg)
+	meta.Error(msg.Message)
 
 	return &LogResponse{}, nil
 }
 
 // Warn will log the received message on warn level
 func (s *Server) Warn(ctx context.Context, msg *LogMessage) (*LogResponse, error) {
+	meta, err := getMeta(msg.Id)
+	if err != nil {
+		return &LogResponse{}, err
+	}
 
-	log.Printf("Warn: %v", msg)
+	meta.Warn(msg.Message)
 
 	return &LogResponse{}, nil
 }
 
 // Info will log the received message on info level
 func (s *Server) Info(ctx context.Context, msg *LogMessage) (*LogResponse, error) {
+	meta, err := getMeta(msg.Id)
+	if err != nil {
+		return &LogResponse{}, err
+	}
 
-	log.Printf("Info: %v", msg)
+	meta.Info(msg.Message)
 
 	return &LogResponse{}, nil
+}
+
+func getMeta(id int32) (*logrus.Entry, error) {
+	service, err := getService(id)
+	if err != nil {
+		return &logrus.Entry{}, err
+	}
+
+	return logrus.WithFields(logrus.Fields{
+		"app":     service.app,
+		"service": service.name,
+	}), nil
+}
+
+func getService(id int32) (service, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	s, ok := registry[id]
+	if !ok {
+		return service{}, fmt.Errorf("ERR_SERVICE_NOT_REGISTERED")
+	}
+
+	return s, nil
 }

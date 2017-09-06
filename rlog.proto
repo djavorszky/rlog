@@ -13,7 +13,8 @@ service Log {
 }
 
 message RegisterRequest {
-    string name = 1;
+    string app = 1;
+    string service = 2;
 }
 
 message RegisterResponse {
