@@ -1,9 +1,12 @@
 package rlog
 
 import (
+	"bytes"
 	fmt "fmt"
 	"io"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -39,6 +42,7 @@ type service struct {
 // to stderr
 func SetOut(out io.Writer) {
 	logrus.SetOutput(out)
+	logrus.SetFormatter(logger{})
 }
 
 // Server implements implements the methods of the rlog service
@@ -143,4 +147,35 @@ func getService(id int32) (service, error) {
 	}
 
 	return s, nil
+}
+
+type logger struct{}
+
+func (l logger) Format(entry *logrus.Entry) ([]byte, error) {
+	line := fmt.Sprintf("%s - [%s::%s] [%s] %s", entry.Time.Format(time.RFC3339), entry.Data["app"], entry.Data["service"], entry.Level, entry.Message)
+
+	if len(entry.Data) > 2 {
+		var buf bytes.Buffer
+
+		for k, v := range entry.Data {
+			if k == "app" || k == "service" {
+				continue
+			}
+
+			val, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("couldn't cast value of %q to string", k)
+			}
+
+			buf.WriteString(", ")
+			buf.WriteString(k)
+			buf.WriteString("=")
+			buf.WriteString(val)
+			buf.WriteString("")
+		}
+
+		line = fmt.Sprintf("%s (%s)", line, strings.TrimLeft(buf.String(), ", "))
+	}
+
+	return []byte(line + "\n"), nil
 }
