@@ -18,7 +18,7 @@ func main() {
 
 func start() {
 	port := flag.Int("port", 1338, "Define port on which server should listen")
-	logFile := flag.String("log", "logregator.log", "Set the file inwhich logging will happen")
+	logFile := flag.String("log", "logregator.log", "Set the file in which logging will happen")
 	flag.Parse()
 
 	fmt.Printf("Starting to listen to tcp connections on port %d\n", *port)
