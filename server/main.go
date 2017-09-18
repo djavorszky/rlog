@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 
+	"github.com/djavorszky/disco"
+
 	"github.com/djavorszky/rlog"
 
 	"google.golang.org/grpc"
@@ -40,6 +42,11 @@ func start() {
 	grpcServer := grpc.NewServer()
 
 	rlog.RegisterLogServer(grpcServer, &rlog.Server{})
+
+	err = disco.Announce("224.0.0.1:9999", fmt.Sprintf("192.168.221.219:%d", *port), "rlog")
+	if err != nil {
+		log.Fatalf("Could not announce myself: %v", err)
+	}
 
 	grpcServer.Serve(lis)
 }
