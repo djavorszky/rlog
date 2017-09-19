@@ -19,8 +19,11 @@ func main() {
 }
 
 func start() {
+	host := flag.String("host", "localhost", "Define the host or ip of the current server")
 	port := flag.Int("port", 1338, "Define port on which server should listen")
 	logFile := flag.String("log", "logregator.log", "Set the file in which logging will happen")
+	mAddr := flag.String("maddr", "224.0.0.1:9999", "Specify the ip:port of the multicast address on which to announce oneself.")
+
 	flag.Parse()
 
 	fmt.Printf("Starting to listen to tcp connections on port %d\n", *port)
@@ -43,7 +46,7 @@ func start() {
 
 	rlog.RegisterLogServer(grpcServer, &rlog.Server{})
 
-	err = disco.Announce("224.0.0.1:9999", fmt.Sprintf("192.168.221.219:%d", *port), "rlog")
+	err = disco.Announce(*mAddr, fmt.Sprintf("%s:%d", *host, *port), "rlog")
 	if err != nil {
 		log.Fatalf("Could not announce myself: %v", err)
 	}
