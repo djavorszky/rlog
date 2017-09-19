@@ -14,7 +14,7 @@ docker stop rlog-server
 docker rm rlog-server
 
 echo "starting rlog"
-docker run -dit -p 1338:1338 --name rlog-server -v /home/javdaniel/go/src/github.com/djavorszky/ddn/dist/data:/log djavorszky/rlog:latest
+docker run -dit -p 1338:1338 --net=host --name rlog-server -v /home/javdaniel/go/src/github.com/djavorszky/ddn/dist/data:/log djavorszky/rlog:latest
 
 echo "removing artefacts"
 rm rlog
